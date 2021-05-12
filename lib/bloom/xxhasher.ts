@@ -1,13 +1,12 @@
-const xxhash = require("xxhash");
+import xxhash from "xxhash-wasm";
 import Long from "long"
 
-const HASH_SEED = 0x0
-type SupportedType = Buffer | Uint8Array | Long | string | number | bigint | boolean
+type HasherFunc = (input: string, seedHigh?: number, seedLow?: number) => string
 
 /**
  * @class XxHasher
  *
- * @description  Simple wrapper for xxhash package that makes educated guesses to convert
+ * @description  Simple wrapper for xxhash-wasm package that converts
  * Parquet Type analogs in JavaScript to strings for creating 64 bit hashes.  Hash seed = 0 per
  * [Parquet specification](https://github.com/apache/parquet-format/blob/master/BloomFilter.md).
  *
@@ -15,43 +14,30 @@ type SupportedType = Buffer | Uint8Array | Long | string | number | bigint | boo
  * [xxHash spec](https://github.com/Cyan4973/xxHash/blob/v0.7.0/doc/xxhash_spec.md)
  */
 class XxHasher {
-  private static hashWithToString(value: any): string {
-    return xxhash.hash64(Buffer.from(value.toString()), HASH_SEED, 'hex')
-  }
+    private static h64 = xxhash().then(x => x.h64)
 
-  private static hash64Buffer(value: Buffer): string {
-    return xxhash.hash64(value, HASH_SEED, 'hex')
-  }
+    private async hashit(value: string): Promise<string> {
+        return (await XxHasher.h64)(value)
+    }
 
-  private static hash64Bytes(value: string | Uint8Array): string {
-    return xxhash.hash64(Buffer.from(value), HASH_SEED, 'hex')
-  }
-
-
-  /**
-   * @function hash64
-   * @description attempts to create a hash for certain data types.
-   * @return the 64 big XXHash as a string
-   * @param value one of n, throw an error.
-   */
-  static hash64(value: SupportedType): string {
-    if (value instanceof Buffer) return this.hash64Buffer(value)
-
-    if (value instanceof Uint8Array) return this.hash64Bytes(value)
-
-    if (value instanceof Long) return this.hashWithToString(value)
-
-    switch (typeof value) {
-      case 'string':
-        return this.hash64Bytes(value)
-      case 'number': // FLOAT, DOUBLE, INT32?
-      case 'bigint':
-      case 'boolean':
-        return this.hashWithToString(value)
-      default:
+    /**
+     * @function hash64
+     * @description creates a hash for certain data types.
+     * @return the 64 big XXHash as a string
+     * @param value one of n, throw an error.
+     */
+    async hash64(value: any): Promise<string> {
+        if (typeof value === 'string') return this.hashit(value)
+        if (value instanceof Buffer ||
+            value instanceof Uint8Array ||
+            value instanceof Long ||
+            typeof value === 'boolean' ||
+            typeof value === 'number' ||
+            typeof value === 'bigint') {
+            return this.hashit(value.toString())
+        }
         throw new Error("unsupported type: " + value)
     }
-  }
 }
 
 export = XxHasher;
