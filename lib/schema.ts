@@ -3,6 +3,7 @@ const parquet_codec = require('./codec');
 const parquet_compression = require('./compression');
 const parquet_types = require('./types');
 const parquet_util = require('./util');
+import { SchemaDefinition, ParquetField, RepetitionType } from './types/types'
 
 const PARQUET_COLUMN_KEY_SEPARATOR = '.';
 
@@ -10,11 +11,14 @@ const PARQUET_COLUMN_KEY_SEPARATOR = '.';
  * A parquet file schema
  */
 class ParquetSchema {
+  schema: SchemaDefinition
+  fields: Record<string, ParquetField>
+  fieldList: Array<ParquetField>
 
   /**
    * Create a new schema from a JSON schema definition
    */
-  constructor(schema) {
+  constructor(schema: SchemaDefinition) {
     this.schema = schema;
     this.fields = buildFields(schema);
     this.fieldList = listFields(this.fields);
@@ -23,8 +27,8 @@ class ParquetSchema {
   /**
    * Retrieve a field definition
    */
-  findField(path) {
-    if (path.constructor !== Array) {
+  findField(path: string | Array<string>) {
+    if (typeof path === 'string') {
       path = path.split(",");
     } else {
       path = path.slice(0); // clone array
@@ -32,7 +36,10 @@ class ParquetSchema {
 
     let n = this.fields;
     for (; path.length > 1; path.shift()) {
-      n = n[path[0]].fields;
+      let field = n[path[0]].fields
+      if (isDefined(field)) {
+        n = field;
+      }
     }
 
     return n[path[0]];
@@ -41,8 +48,8 @@ class ParquetSchema {
   /**
    * Retrieve a field definition and all the field's ancestors
    */
-  findFieldBranch(path) {
-    if (path.constructor !== Array) {
+  findFieldBranch(path: string | Array<string>) {
+    if (typeof path === 'string') {
       path = path.split(",");
     }
 
@@ -51,8 +58,9 @@ class ParquetSchema {
     for (; path.length > 0; path.shift()) {
       branch.push(n[path[0]]);
 
-      if (path.length > 1) {
-        n = n[path[0]].fields;
+      let field = n[path[0]].fields
+      if (path.length > 1 && isDefined(field)) {
+        n = field;
       }
     }
 
@@ -61,7 +69,7 @@ class ParquetSchema {
 
 };
 
-function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
+function buildFields(schema: SchemaDefinition, rLevelParentMax?: number, dLevelParentMax?: number, path?: Array<string>) {
   if (!rLevelParentMax) {
     rLevelParentMax = 0;
   }
@@ -74,7 +82,7 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
     path = [];
   }
 
-  let fieldList = {};
+  let fieldList: Record<string, ParquetField> = {};
   for (let name in schema) {
     const opts = schema[name];
 
@@ -84,7 +92,7 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
     let rLevelMax = rLevelParentMax;
     let dLevelMax = dLevelParentMax;
 
-    let repetitionType = 'REQUIRED';
+    let repetitionType: RepetitionType = 'REQUIRED';
     if (!required) {
       repetitionType = 'OPTIONAL';
       ++dLevelMax;
@@ -100,32 +108,33 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
     }
 
     /* nested field */
+    
     if (opts.fields) {
       fieldList[name] = {
         name: name,
-        path: path.concat([name]),
+        path: path.concat(name),
         repetitionType: repetitionType,
         rLevelMax: rLevelMax,
         dLevelMax: dLevelMax,
         isNested: true,
-        statistics: opts.statistics,
+        // statistics: opts.statistics,
         fieldCount: Object.keys(opts.fields).length,
         fields: buildFields(
               opts.fields,
               rLevelMax,
               dLevelMax,
-              path.concat([name]))
+              path.concat(name))
       };
-
-      if (opts.type == 'LIST' || opts.type == 'MAP') fieldList[name].originalType = opts.type;
 
       continue;
     }
 
+    let typeDef;
     /* field type */
-    const typeDef = parquet_types.PARQUET_LOGICAL_TYPES[opts.type];
-    if (!typeDef) {
+    if (!opts.type) {
       throw 'invalid parquet type: ' + opts.type;
+    } else {
+      typeDef = parquet_types.PARQUET_LOGICAL_TYPES[opts.type];
     }
 
     /* field encoding */
@@ -134,7 +143,7 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
     }
 
     if (!(opts.encoding in parquet_codec)) {
-      throw 'unsupported parquet encoding: ' + opts.encodig;
+      throw 'unsupported parquet encoding: ' + opts.encoding;
     }
 
     if (!opts.compression) {
@@ -153,7 +162,7 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
       path: path.concat([name]),
       repetitionType: repetitionType,
       encoding: opts.encoding,
-      statistics: opts.statistics,
+      // statistics: opts.statistics,
       compression: opts.compression,
       typeLength: opts.typeLength || typeDef.typeLength,
       rLevelMax: rLevelMax,
@@ -164,18 +173,23 @@ function buildFields(schema, rLevelParentMax, dLevelParentMax, path) {
   return fieldList;
 }
 
-function listFields(fields) {
-  let list = [];
+function listFields(fields: Record<string, ParquetField>) {
+  let list: Array<ParquetField> = [];
 
   for (let k in fields) {
     list.push(fields[k]);
 
-    if (fields[k].isNested) {
-      list = list.concat(listFields(fields[k].fields));
+    let field = fields[k].fields
+    if (fields[k].isNested && isDefined(field)) {
+      list = list.concat(listFields(field));
     }
   }
 
   return list;
+}
+
+function isDefined<T>(val: T | undefined): val is T {
+  return val !== undefined;
 }
 
 module.exports = { ParquetSchema };

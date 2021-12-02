@@ -61,7 +61,7 @@ export interface FieldDefinition {
 export interface ParquetField {
     name: string;
     path: string[];
-    key: string;
+    // key: string;
     primitiveType?: PrimitiveType;
     originalType?: OriginalType;
     repetitionType: RepetitionType;
