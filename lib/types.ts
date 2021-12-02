@@ -1,11 +1,11 @@
-'use strict';
 import * as BSON from "bson"
+import { PrimitiveType, OriginalType } from "./types/types"
 interface PARQUET_LOGICAL_TYPES {
     [key:string]: {
-        primitiveType: string,
+        primitiveType: PrimitiveType,
         toPrimitive: Function,
         fromPrimitive?: Function,
-        originalType?: string,
+        originalType?: OriginalType,
         typeLength?: number
     }
 }

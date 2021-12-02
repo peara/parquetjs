@@ -1,9 +1,7 @@
-'use strict';
-const parquet_codec = require('./codec');
-const parquet_compression = require('./compression');
-const parquet_types = require('./types');
-const parquet_util = require('./util');
-import { SchemaDefinition, ParquetField, RepetitionType } from './types/types'
+import * as parquet_codec from './codec';
+import * as parquet_compression from './compression'
+import * as parquet_types from './types'
+import { SchemaDefinition, ParquetField, RepetitionType, ParquetType } from './types/types'
 
 const PARQUET_COLUMN_KEY_SEPARATOR = '.';
 
@@ -129,7 +127,7 @@ function buildFields(schema: SchemaDefinition, rLevelParentMax?: number, dLevelP
       continue;
     }
 
-    let typeDef;
+    let typeDef ;
     /* field type */
     if (!opts.type) {
       throw 'invalid parquet type: ' + opts.type;
