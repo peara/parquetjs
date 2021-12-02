@@ -10,7 +10,7 @@ const PARQUET_COLUMN_KEY_SEPARATOR = '.';
 /**
  * A parquet file schema
  */
-class ParquetSchema {
+export class ParquetSchema {
   schema: SchemaDefinition
   fields: Record<string, ParquetField>
   fieldList: Array<ParquetField>
@@ -191,6 +191,3 @@ function listFields(fields: Record<string, ParquetField>) {
 function isDefined<T>(val: T | undefined): val is T {
   return val !== undefined;
 }
-
-module.exports = { ParquetSchema };
-

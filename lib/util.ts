@@ -1,4 +1,5 @@
-import thrift from "thrift";
+import { Thrift, TTransportCallback } from "thrift";
+import thrift from "thrift"
 import fs from 'fs'
 import parquet_thrift from '../gen-nodejs/parquet_types'
 
@@ -6,7 +7,7 @@ import parquet_thrift from '../gen-nodejs/parquet_types'
   * readString returns the original buffer instead of a string if the 
   * buffer can not be safely encoded as utf8 (see http://bit.ly/2GXeZEF)
   */
-
+ 
 class fixedTFramedTransport extends thrift.TFramedTransport {
   inBuf: Buffer
   readPos: number
@@ -37,8 +38,8 @@ PageLocation.write = previousPageLocation.write;
 PageLocation.read = previousPageLocation.read;
 
 const getterSetter = (index: number) => ({
-  get: function() { return this[index]; },
-  set: function(value) { return this[index] = value;}
+  get: function(): number { return this[index]; },
+  set: function(value: number): number { return this[index] = value;}
 });
 
 Object.defineProperty(PageLocation,'offset', getterSetter(0));
@@ -54,7 +55,7 @@ export const force32 = function() {
     let shift = 0;
     let b;
     while (true) {
-      b = this.trans.readByte();
+      b = protocol.readByte();
       lo = lo | ((b & 0x7f) << shift);
       shift += 7;
       if (!(b & 0x80)) {
@@ -71,9 +72,11 @@ export const force32 = function() {
 export const serializeThrift = function(obj: thrift.Thrift.TApplicationException) {
   let output:Array<Uint8Array> = []
 
-  let transport = new thrift.TBufferedTransport(null, function (buf: Buffer) {
-    output.push(buf)
-  })
+  const callBack:TTransportCallback = function (buf: Buffer | undefined) {
+    output.push(buf as Buffer)
+  }
+
+  let transport = new thrift.TBufferedTransport(undefined, callBack)
 
   let protocol = new thrift.TCompactProtocol(transport)
   obj.write(protocol)
@@ -168,13 +171,13 @@ export const fclose = function(fd: number) {
   });
 }
 
-export const oswrite = function(os, buf) {
+export const oswrite = function(os, buf: Buffer) {
   return new Promise((resolve, reject) => {
-    os.write(buf, (err) => {
+    os.write(buf, (err: Error) => {
       if (err) {
         reject(err);
       } else {
-        resolve();
+        resolve(err);
       }
     });
   });
@@ -182,11 +185,11 @@ export const oswrite = function(os, buf) {
 
 export const osend = function(os) {
   return new Promise((resolve, reject) => {
-    os.end((err) => {
+    os.end((err: Error) => {
       if (err) {
         reject(err);
       } else {
-        resolve();
+        resolve(err);
       }
     });
   });
@@ -206,7 +209,7 @@ export const osopen = function(path: string | Buffer | URL, opts: string) {
   });
 }
 
-export const fieldIndexOf = function(arr, elem) {
+export const fieldIndexOf = function(arr: Array<Array<unknown>>, elem: Array<unknown>) {
   for (let j = 0; j < arr.length; ++j) {
     if (arr[j].length !== elem.length) {
       continue;

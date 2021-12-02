@@ -8,4 +8,3 @@ declare module 'snappyjs' {
     export const compress: (value: ArrayBuffer | Buffer | Uint8Array) => ArrayBuffer | Buffer | Uint8Array
     export const uncompress: (value: ArrayBuffer | Buffer | Uint8Array) => ArrayBuffer | Buffer | Uint8Array
 }
-

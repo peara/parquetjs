@@ -84,6 +84,7 @@ export interface ParquetData {
     dlevels: number[];
     rlevels: number[];
     values: any[];
+    distinct_values: Set<any>
     count: number;
 }
 
