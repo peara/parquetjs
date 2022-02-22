@@ -10,7 +10,7 @@ export type ParquetType = PrimitiveType | OriginalType;
 
 export type PrimitiveType =
 // Base Types
-    'BOOLEAN' // 0
+    |'BOOLEAN' // 0
     | 'INT32' // 1
     | 'INT64' // 2
     | 'INT96' // 3
@@ -22,9 +22,9 @@ export type PrimitiveType =
 export type OriginalType =
 // Converted Types
     | 'UTF8' // 0
-    // | 'MAP' // 1
+    | 'MAP' // 1
     // | 'MAP_KEY_VALUE' // 2
-    // | 'LIST' // 3
+     | 'LIST' // 3
     // | 'ENUM' // 4
     // | 'DECIMAL' // 5
     | 'DATE' // 6
@@ -44,6 +44,15 @@ export type OriginalType =
     | 'BSON' // 20
     | 'INTERVAL'; // 21
 
+export interface Statistics {
+    max: number
+    min: number
+    null_count: number
+    distinct_count: number
+    max_value: number
+    min_value: number
+}
+
 export interface SchemaDefinition {
     [string: string]: FieldDefinition;
 }
@@ -56,12 +65,13 @@ export interface FieldDefinition {
     optional?: boolean;
     repeated?: boolean;
     fields?: SchemaDefinition;
+    statistics?: Statistics
 }
 
 export interface ParquetField {
     name: string;
     path: string[];
-    key: string;
+    statistics?: Statistics
     primitiveType?: PrimitiveType;
     originalType?: OriginalType;
     repetitionType: RepetitionType;
