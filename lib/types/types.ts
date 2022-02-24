@@ -93,6 +93,7 @@ export interface ParquetBuffer {
 export interface ParquetData {
     dlevels: number[];
     rlevels: number[];
+    distinct_values: Set<any>
     values: any[];
     count: number;
 }
