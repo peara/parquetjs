@@ -465,6 +465,9 @@ export declare class ColumnMetaData {
   statistics?: Statistics;
   encoding_stats?: PageEncodingStats[];
   bloom_filter_offset?: Int64;
+  offsetIndex: OffsetIndex;
+  columnIndex: ColumnIndex;
+
 
     constructor(args?: { type: Type; encodings: Encoding[]; path_in_schema: string[]; codec: CompressionCodec; num_values: Int64; total_uncompressed_size: Int64; total_compressed_size: Int64; key_value_metadata?: KeyValue[]; data_page_offset: Int64; index_page_offset?: Int64; dictionary_page_offset?: Int64; statistics?: Statistics; encoding_stats?: PageEncodingStats[]; bloom_filter_offset?: Int64; });
 }
