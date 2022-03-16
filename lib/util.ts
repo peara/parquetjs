@@ -2,8 +2,7 @@ import { TTransportCallback } from "thrift";
 import thrift from "thrift"
 import fs, { WriteStream } from 'fs'
 import * as parquet_thrift from '../gen-nodejs/parquet_types'
-import { NewFileMetaData } from './types/types'
-import { streamOptions } from "./types/types";
+import { NewFileMetaData, WriterOptions } from './types/types'
 
 /** We need to use a patched version of TFramedTransport where
   * readString returns the original buffer instead of a string if the 
@@ -13,7 +12,7 @@ import { streamOptions } from "./types/types";
 
 type Enums = typeof parquet_thrift.Encoding | typeof parquet_thrift.FieldRepetitionType | typeof parquet_thrift.Type | typeof parquet_thrift.CompressionCodec | typeof parquet_thrift.PageType | typeof parquet_thrift.ConvertedType;
  
-type ThriftObject = NewFileMetaData | parquet_thrift.PageHeader | parquet_thrift.BloomFilterHeader | parquet_thrift.OffsetIndex | parquet_thrift.ColumnIndex | NewFileMetaData;
+type ThriftObject = NewFileMetaData | parquet_thrift.PageHeader | parquet_thrift.ColumnMetaData | parquet_thrift.BloomFilterHeader | parquet_thrift.OffsetIndex | parquet_thrift.ColumnIndex | NewFileMetaData;
 
 // May not be needed anymore, Issue at https://github.com/LibertyDSNP/parquetjs/issues/41
 class fixedTFramedTransport extends thrift.TFramedTransport {
@@ -85,7 +84,7 @@ export const force32 = function() {
 /**
  * Helper function that serializes a thrift object into a buffer
  */
-export const serializeThrift = function(obj: parquet_thrift.BloomFilterHeader) {
+export const serializeThrift = function(obj: ThriftObject) {
   let output:Array<Uint8Array> = []
 
   const callBack:TTransportCallback = function (buf: Buffer | undefined) {
@@ -213,7 +212,7 @@ export const osend = function(os: WriteStream) {
   });
 }
 
-export const osopen = function(path: string | Buffer | URL, opts?: string | streamOptions): Promise<WriteStream> {
+export const osopen = function(path: string | Buffer | URL, opts?: string | WriterOptions): Promise<WriteStream> {
   return new Promise((resolve, reject) => {
     let outputStream = fs.createWriteStream(path, opts);
 
