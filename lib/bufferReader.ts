@@ -1,7 +1,14 @@
-interface BufferReaderOptions {
+import { Statistics } from "gen-nodejs/parquet_types"
+import { ParquetEnvelopeReader } from "./reader"
+import { NewFileMetaData } from "./types/types"
+
+export interface BufferReaderOptions {
   maxSpan?: number,
   maxLength?: number,
   queueWait?: number
+  default_dictionary_size?: number;
+  metadata?: NewFileMetaData
+  rawStatistics?: Statistics
 }
 
 interface BufferReaderQueueRow {
@@ -11,19 +18,15 @@ interface BufferReaderQueueRow {
   reject: unknown
 }
 
-interface EnvelopeReader {
-  readFn: (start: number, finish: number) => Promise<Buffer>
-}
-
 export default class BufferReader {
   maxSpan: number
   maxLength: number
   queueWait: number
   scheduled?: boolean
   queue: Array<BufferReaderQueueRow>
-  envelopeReader: EnvelopeReader
+  envelopeReader: ParquetEnvelopeReader
 
-  constructor(envelopeReader: EnvelopeReader, options: BufferReaderOptions) {
+  constructor(envelopeReader: ParquetEnvelopeReader, options: BufferReaderOptions) {
     options = options || {};
     this.envelopeReader = envelopeReader;
     this.maxSpan = options.maxSpan || 100000; // 100k
@@ -33,7 +36,7 @@ export default class BufferReader {
     this.queue = [];
   }
 
-  async read(offset: number, length: number) {
+  async read(offset: number, length: number): Promise<Buffer> {
     if (!this.scheduled) {
       this.scheduled = true;
       setTimeout( () => {

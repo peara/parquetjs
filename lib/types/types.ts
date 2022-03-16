@@ -1,6 +1,7 @@
 // Lifted from https://github.com/kbajalc/parquets
 
-import { RowGroup } from "gen-nodejs/parquet_types";
+import parquet_thrift from "../../gen-nodejs/parquet_types";
+import { Statistics, OffsetIndex, ColumnIndex, PageType, DataPageHeader, DataPageHeaderV2, DictionaryPageHeader, IndexPageHeader, Type, SchemaElement } from "../../gen-nodejs/parquet_types";
 import SplitBlockBloomFilter from "lib/bloom/sbbf";
 
 export type ParquetCodec = 'PLAIN' | 'RLE';
@@ -44,15 +45,6 @@ export type OriginalType =
     | 'BSON' // 20
     | 'INTERVAL'; // 21
 
-export interface Statistics {
-    max: number
-    min: number
-    null_count: number
-    distinct_count: number
-    max_value: number
-    min_value: number
-}
-
 export interface SchemaDefinition {
     [string: string]: FieldDefinition;
 }
@@ -66,6 +58,8 @@ export interface FieldDefinition {
     repeated?: boolean;
     fields?: SchemaDefinition;
     statistics?: Statistics
+    parent?: ParentField
+    num_children?: NumChildrenField
 }
 
 export interface ParquetField {
@@ -83,19 +77,22 @@ export interface ParquetField {
     isNested?: boolean;
     fieldCount?: number;
     fields?: Record<string, ParquetField>;
+    disableEnvelope?: boolean
+}
+
+interface ParentField {
+    value: SchemaDefinition
+    enumerable: boolean
+}
+
+interface NumChildrenField {
+    value: number
+    enumerable:boolean
 }
 
 export interface ParquetBuffer {
     rowCount?: number;
-    columnData?: Record<string, ParquetData>;
-}
-
-export interface ParquetData {
-    dlevels: number[];
-    rlevels: number[];
-    distinct_values: Set<any>
-    values: any[];
-    count: number;
+    columnData?: Record<string, PageData>;
 }
 
 export interface ParquetRecord {
@@ -108,11 +105,11 @@ export interface Offset {
 }
 
 export interface ColumnMetaData {
-    type: number,
+    type: Type,
     encodings: Array<any>,
     path_in_schema: Array<string>,
     codec: number,
-    num_values: any,
+    num_values: number,
     total_uncompressed_size: any,
     total_compressed_size: any,
     key_value_metadata: any,
@@ -128,11 +125,29 @@ export interface ColumnData {
     file_path: string,
     file_offset: Offset,
     meta_data: ColumnMetaData
+    offset_index_length?: number;
+    column_index_length?: number;
+    encrypted_column_metadata?: Buffer;
+    offsetIndex?: OffsetIndex;
+    offset_index_offset?: number;
+    columnIndex?: ColumnIndex;
+    column_index_offset?: number;
 }
 
 export interface ColumnChunkData {
     rowGroupIndex: number,
     column: ColumnData
+}
+
+export declare class RowGroup {
+    columns: ColumnData[];
+    num_rows: number;
+    ordinal?: number;
+}
+
+export declare class KeyValue {
+    key: string;
+    value?: string;
 }
 
 export type Block = Uint32Array
@@ -142,3 +157,70 @@ export interface BloomFilterData {
     columnName: string,
     RowGroupIndex: number,
 };
+
+export interface Parameter {
+    url: string;
+    headers?: string
+}
+
+export interface PageData {
+    rlevels?: number[];
+    dlevels?: number[];
+    distinct_values?: Set<any>
+    values?: number[];
+    pageHeaders?: PageHeader[];
+    pageHeader?: PageHeader;
+    count?: number;
+    dictionary?: Array<unknown>
+    column?: ColumnData
+}
+
+export declare class PageHeader {
+    type: PageType;
+    uncompressed_page_size: number;
+    compressed_page_size: number;
+    crc?: number;
+    data_page_header?: DataPageHeader;
+    index_page_header?: IndexPageHeader;
+    dictionary_page_header?: DictionaryPageHeader;
+    data_page_header_v2?: DataPageHeaderV2;
+    offset?: number;
+    headerSize?: number;
+  
+      constructor(args?: { type: PageType; uncompressed_page_size: number; compressed_page_size: number; crc?: number; data_page_header?: DataPageHeader; index_page_header?: IndexPageHeader; dictionary_page_header?: DictionaryPageHeader; data_page_header_v2?: DataPageHeaderV2; });
+  }
+
+  export interface ClientParameters {
+    Bucket: string,
+    Key: string
+  }
+
+  export interface PromiseS3 {
+      promise: () => Promise<any>
+  }
+
+  export interface ClientS3 {
+    accessKeyId: string,
+    secretAccessKey: string,
+    headObject: (params: ClientParameters) => PromiseS3
+    getObject: (args: any) => PromiseS3
+}
+
+export class NewFileMetaData extends parquet_thrift.FileMetaData {
+    json?:JSON;
+    //@ts-ignore
+    row_groups:RowGroup[];
+    constructor() {
+      super()
+    } 
+  }
+
+export class NewPageHeader extends parquet_thrift.PageHeader {
+    offset?: number;
+    headerSize?: number;
+    constructor() {
+      super()
+    } 
+  }
+  
+  

@@ -1,6 +1,6 @@
 import * as parquet_types from './types'
 import { ParquetSchema } from './schema'
-import { ParquetData, ParquetField } from './types/types';
+import { PageData, ParquetField } from './types/types';
 
 /**
  * 'Shred' a record into a list of <value, repetition_level, definition_level>
@@ -26,16 +26,16 @@ import { ParquetData, ParquetField } from './types/types';
  *
  */
 
-interface RecordBuffer {
-  columnData: Record<string, ParquetData>
-  rowCount: number,
-  pageRowCount: number,
-  pages: Record<string,object>
+export interface RecordBuffer {
+  columnData: Record<string, PageData>
+  rowCount?: number,
+  pageRowCount?: number,
+  pages?: Record<string,object>
 }
 
 export const shredRecord = function(schema: ParquetSchema, record: Record<string, unknown>, buffer: RecordBuffer) {
   /* shred the record, this may raise an exception */
-  var recordShredded: Record<string, ParquetData> = {};
+  var recordShredded: Record<string, PageData> = {};
   for (let field of schema.fieldList) {
     recordShredded[field.path.join(',')] = {
       dlevels: [],
@@ -68,28 +68,28 @@ export const shredRecord = function(schema: ParquetSchema, record: Record<string
     }
   }
 
-  buffer.rowCount += 1;
-  buffer.pageRowCount += 1;
+  (buffer.rowCount as number) += 1;
+  (buffer.pageRowCount as number) += 1;
   for (let field of schema.fieldList) {
     let path = field.path.join(',')
     let record = recordShredded[path];
     let column = buffer.columnData[path];
 
-    for (let i = 0; i < record.rlevels.length; i++) {
-      column.rlevels.push(record.rlevels[i]);
-      column.dlevels.push(record.dlevels[i]);
-      if (record.values[i] !== undefined) {
-        column.values.push(record.values[i]);
+    for (let i = 0; i < record.rlevels!.length; i++) {
+      column.rlevels!.push(record.rlevels![i]);
+      column.dlevels!.push(record.dlevels![i]);
+      if (record.values![i] !== undefined) {
+        column.values!.push(record.values![i]);
       }
     }
 
-    [...recordShredded[path].distinct_values].forEach(value => buffer.columnData[path].distinct_values.add(value));
+    [...recordShredded[path].distinct_values!].forEach(value => buffer.columnData[path].distinct_values!.add(value));
 
-    buffer.columnData[path].count += recordShredded[path].count;
+    buffer.columnData[path].count! += recordShredded[path].count!;
   }
 };
 
-function shredRecordInternal(fields: Record<string, ParquetField>, record: Record<string, unknown> | null, data: Record<string, ParquetData>, rlvl: number, dlvl: number) {
+function shredRecordInternal(fields: Record<string, ParquetField>, record: Record<string, unknown> | null, data: Record<string, PageData>, rlvl: number, dlvl: number) {
   for (let fieldName in fields) {
     const field = fields[fieldName];
     const fieldType = field.originalType || field.primitiveType;
@@ -124,9 +124,9 @@ function shredRecordInternal(fields: Record<string, ParquetField>, record: Recor
             rlvl,
             dlvl);
       } else {
-        data[path].rlevels.push(rlvl);
-        data[path].dlevels.push(dlvl);
-        data[path].count += 1;
+        data[path].rlevels!.push(rlvl);
+        data[path].dlevels!.push(dlvl);
+        data[path].count! += 1;
       }
       continue;
     }
@@ -143,11 +143,11 @@ function shredRecordInternal(fields: Record<string, ParquetField>, record: Recor
             rlvl_i,
             field.dLevelMax);
       } else {
-        data[path].distinct_values.add(values[i]);
-        data[path].values.push(parquet_types.toPrimitive(fieldType as string, values[i]));
-        data[path].rlevels.push(rlvl_i);
-        data[path].dlevels.push(field.dLevelMax);
-        data[path].count += 1;
+        data[path].distinct_values!.add(values[i]);
+        data[path].values!.push(parquet_types.toPrimitive(fieldType as string, values[i]));
+        data[path].rlevels!.push(rlvl_i);
+        data[path].dlevels!.push(field.dLevelMax);
+        data[path].count! += 1;
       }
     }
   }
@@ -182,14 +182,14 @@ export const materializeRecords = function(schema: ParquetSchema, buffer: Record
   for (let k in buffer.columnData) {
     const field = schema.findField(k);
     const fieldBranch = schema.findFieldBranch(k);
-    let values = buffer.columnData[k].values[Symbol.iterator]();
+    let values = buffer.columnData[k].values![Symbol.iterator]();
 
     let rLevels = new Array(field.rLevelMax + 1);
     rLevels.fill(0);
 
-    for (let i = 0; i < buffer.columnData[k].count; ++i) {
-      const dLevel = buffer.columnData[k].dlevels[i];
-      const rLevel = buffer.columnData[k].rlevels[i];
+    for (let i = 0; i < buffer.columnData[k].count!; ++i) {
+      const dLevel = buffer.columnData[k].dlevels![i];
+      const rLevel = buffer.columnData[k].rlevels![i];
 
       rLevels[rLevel]++;
       rLevels.fill(0, rLevel + 1);

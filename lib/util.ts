@@ -2,12 +2,18 @@ import { TTransportCallback } from "thrift";
 import thrift from "thrift"
 import fs, { WriteStream } from 'fs'
 import * as parquet_thrift from '../gen-nodejs/parquet_types'
+import { NewFileMetaData } from './types/types'
 
 /** We need to use a patched version of TFramedTransport where
   * readString returns the original buffer instead of a string if the 
   * buffer can not be safely encoded as utf8 (see http://bit.ly/2GXeZEF)
   */
+
+
+type Enums = typeof parquet_thrift.Encoding | typeof parquet_thrift.FieldRepetitionType | typeof parquet_thrift.Type | typeof parquet_thrift.CompressionCodec | typeof parquet_thrift.PageType | typeof parquet_thrift.ConvertedType;
  
+type ThriftObject = NewFileMetaData | parquet_thrift.PageHeader | parquet_thrift.BloomFilterHeader | parquet_thrift.OffsetIndex | parquet_thrift.ColumnIndex | NewFileMetaData;
+
 // May not be needed anymore, Issue at https://github.com/LibertyDSNP/parquetjs/issues/41
 class fixedTFramedTransport extends thrift.TFramedTransport {
   inBuf: Buffer
@@ -95,7 +101,7 @@ export const serializeThrift = function(obj: parquet_thrift.BloomFilterHeader) {
   return Buffer.concat(output)
 }
 
-export const decodeThrift = function(obj: parquet_thrift.BloomFilterHeader, buf: Buffer, offset?: number) {
+export const decodeThrift = function(obj: ThriftObject, buf: Buffer, offset?: number) {
   if (!offset) {
     offset = 0
   }
@@ -122,7 +128,7 @@ export const getBitWidth = function(val: number) {
 /**
  * FIXME not ideal that this is linear
  */
-export const getThriftEnum = function(klass: Array<unknown>, value: unknown) {
+export const getThriftEnum = function(klass: Enums, value: unknown) {
   for (let k in klass) {
     if (klass[k] === value) {
       return k;
@@ -132,7 +138,7 @@ export const getThriftEnum = function(klass: Array<unknown>, value: unknown) {
   throw 'Invalid ENUM value';
 }
 
-export const fopen = function(filePath: string | Buffer | URL) {
+export const fopen = function(filePath: string | Buffer | URL): Promise<number> {
   return new Promise((resolve, reject) => {
     fs.open(filePath, 'r', (err, fd) => {
       if (err) {
@@ -144,7 +150,7 @@ export const fopen = function(filePath: string | Buffer | URL) {
   });
 }
 
-export const fstat = function(filePath: string | Buffer | URL) {
+export const fstat = function(filePath: string | Buffer | URL): Promise<fs.Stats> {
   return new Promise((resolve, reject) => {
     fs.stat(filePath, (err, stat) => {
       if (err) {
@@ -156,7 +162,7 @@ export const fstat = function(filePath: string | Buffer | URL) {
   });
 }
 
-export const fread = function(fd: number, position: number | null, length: number) {
+export const fread = function(fd: number, position: number | null, length: number): Promise<Buffer> {
   let buffer = Buffer.alloc(length);
 
   return new Promise((resolve, reject) => {
