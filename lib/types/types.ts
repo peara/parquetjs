@@ -125,9 +125,9 @@ export interface ColumnMetaData {
 }
 
 export interface ColumnData {
-    file_path: string,
+    file_path?: string,
     file_offset: Offset,
-    meta_data: ColumnMetaData
+    meta_data?: ColumnMetaData
     offset_index_length?: number;
     column_index_length?: number;
     encrypted_column_metadata?: Buffer;
@@ -140,12 +140,6 @@ export interface ColumnData {
 export interface ColumnChunkData {
     rowGroupIndex: number,
     column: ColumnData
-}
-
-export declare class RowGroup {
-    columns: ColumnData[];
-    num_rows: number;
-    ordinal?: number;
 }
 
 export declare class KeyValue {
@@ -212,7 +206,7 @@ export declare class PageHeader {
 export class NewFileMetaData extends parquet_thrift.FileMetaData {
     json?:JSON;
     //@ts-ignore
-    row_groups: RowGroup[];
+    row_groups: NewRowGroup[];
     constructor() {
       super()
     } 
@@ -238,22 +232,32 @@ export class NewPageHeader extends parquet_thrift.PageHeader {
     } 
   }
 
+  export class NewColumnMetaData extends parquet_thrift.ColumnMetaData {
+    offsetIndex?: parquet_thrift.OffsetIndex
+    columnIndex?: parquet_thrift.ColumnIndex
+    constructor() {
+        super()
+      } 
+  }
+
   
 export type WriterOptions = {
     pageIndex?: boolean;
     pageSize?: number;
     useDataPageV2?: boolean;
-    bloomFilters?: createSBBFParams[];
+    bloomFilters?: Record<string, SplitBlockBloomFilter>;
     baseOffset?: number;
     rowGroupSize?: number;
     flags?: string;
-    encoding?: BufferEncoding;
+    encoding?: BufferEncoding | ParquetCodec;
     fd?: number;
     mode?: number;
     autoClose?: boolean;
     emitClose?: boolean;
     start?: number;
     highWaterMark?: number;
+    column?: ParquetField;
+    rowCount?: number;
 }
 
 export type Page = {

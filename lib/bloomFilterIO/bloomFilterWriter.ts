@@ -63,7 +63,7 @@ export const serializeFilterData = (params: serializeFilterDataParams) => {
 };
 
 export const setFilterOffset = (column: ColumnData, offset: Offset) => {
-  column.meta_data.bloom_filter_offset = offset;
+  column.meta_data!.bloom_filter_offset = offset;
 };
 
 export const getSerializedBloomFilterData = (

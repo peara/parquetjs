@@ -9,7 +9,7 @@ import * as parquet_types from './types';
 import BufferReader , { BufferReaderOptions } from './bufferReader';
 import * as bloomFilterReader from './bloomFilterIO/bloomFilterReader';
 import fetch from 'cross-fetch';
-import { ParquetCodec, Parameter, ColumnData, RowGroup, PageData, SchemaDefinition, ParquetType, FieldDefinition, ParquetField, ClientS3, ClientParameters, NewFileMetaData, NewPageHeader } from './types/types';
+import { ParquetCodec, Parameter, ColumnData, PageData, SchemaDefinition, ParquetType, FieldDefinition, ParquetField, ClientS3, ClientParameters, NewFileMetaData, NewPageHeader, NewRowGroup } from './types/types';
 import { Cursor, Options } from './codec/types';
 
 const {
@@ -455,7 +455,7 @@ export class ParquetEnvelopeReader {
   }
 
   // Helper function to get the column object for a particular path and row_group
-  getColumn(path: string | ColumnData, row_group: RowGroup | number | null) {
+  getColumn(path: string | ColumnData, row_group: NewRowGroup | number | null) {
     let column;
     if (!isNaN(row_group as number)) {
       row_group = this.metadata!.row_groups[row_group as number];
@@ -465,7 +465,7 @@ export class ParquetEnvelopeReader {
       if (!row_group) {
        throw `Missing RowGroup ${row_group}`;
       }
-        column = (row_group as RowGroup).columns.find(d => d.meta_data!.path_in_schema.join(',') === path);
+        column = (row_group as NewRowGroup).columns.find(d => d.meta_data!.path_in_schema.join(',') === path);
 
       if (!column) {
         throw `Column ${path} Not Found`;
@@ -476,7 +476,7 @@ export class ParquetEnvelopeReader {
     return column;
   }
 
-  getAllColumnChunkDataFor(paths: Array<string>, row_groups?: Array<RowGroup>) {
+  getAllColumnChunkDataFor(paths: Array<string>, row_groups?: Array<NewRowGroup>) {
     if (!row_groups) {
       row_groups = this.metadata!.row_groups;
     }
@@ -489,7 +489,7 @@ export class ParquetEnvelopeReader {
             )
   }
 
-  readOffsetIndex(path: string | ColumnData, row_group: RowGroup | number | null, opts: Options) {
+  readOffsetIndex(path: string | ColumnData, row_group: NewRowGroup | number | null, opts: Options) {
     let column = this.getColumn(path, row_group);
     if (column.offsetIndex) {
       return Promise.resolve(column.offsetIndex);
@@ -514,7 +514,7 @@ export class ParquetEnvelopeReader {
     return data;
   }
 
-  readColumnIndex(path: string | ColumnData, row_group: RowGroup | number, opts: Options) {
+  readColumnIndex(path: string | ColumnData, row_group: NewRowGroup | number, opts: Options) {
     let column = this.getColumn(path, row_group);
     if (column.columnIndex) {
       return Promise.resolve(column.columnIndex);
@@ -568,13 +568,13 @@ export class ParquetEnvelopeReader {
     const chunk = await this.readColumnChunk(this.schema!, column);
     Object.defineProperty(chunk,'column', {value: column});
     let data = {
-      columnData: {[chunk.column!.meta_data.path_in_schema.join(',')]: chunk}
+      columnData: {[chunk.column!.meta_data!.path_in_schema.join(',')]: chunk}
     };
 
     return parquet_shredder.materializeRecords(this.schema!, data, records);
   }
 
-  async readRowGroup(schema: parquet_schema.ParquetSchema, rowGroup: RowGroup, columnList: Array<Array<unknown>>) {
+  async readRowGroup(schema: parquet_schema.ParquetSchema, rowGroup: NewRowGroup, columnList: Array<Array<unknown>>) {
     var buffer: parquet_shredder.RecordBuffer = {
       rowCount: +rowGroup.num_rows,
       columnData: {},
