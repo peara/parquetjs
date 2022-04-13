@@ -482,6 +482,39 @@ describe('Parquet', function() {
       return await writeTestFile(opts).then(readTestFile);
     });
 
+    it('write a typed array field and then read it back', async function() {
+      const opts = { useDataPageV2: true, compression: 'UNCOMPRESSED' };
+      const schema = new parquet.ParquetSchema({
+        data:       { type: 'BYTE_ARRAY', compression: opts.compression },
+      });
+      let writer = await parquet.ParquetWriter.openFile(schema, 'fruits.parquet', opts);
+      writer.setMetadata("myuid", "420");
+      writer.setMetadata("fnord", "dronf");
+      let rows = [];
+      rows.push({ data: Uint8Array.from([12345,365]), });
+      rows.push({ data: Uint16Array.from([42,365]), });
+      rows.push({ data: Float32Array.from([124.8,365.72]), });
+      for (let row of rows) {
+        await writer.appendRow(row);
+      }
+      await writer.close();
+
+      let reader = await parquet.ParquetReader.openFile('fruits.parquet');
+      assert.equal(reader.getRowCount(), rows.length);
+      assert.deepEqual(reader.getMetadata(), { "myuid": "420", "fnord": "dronf" })
+
+      let readSchema = reader.getSchema();
+      assert.equal(readSchema.fieldList.length, 1);
+      assert(schema.fields.data);
+
+      let cursor = reader.getCursor();
+      assert.deepEqual(await cursor.next(), { data: Uint8Array.from([12345,365]) });
+      assert.deepEqual(await cursor.next(), { data: Uint8Array.from([42,365]) });
+      assert.deepEqual(await cursor.next(), { data: Uint8Array.from([124.8,365.72]) });
+
+      assert.equal(await cursor.next(), null);
+    });
+
   });
 
   describe('using the Stream/Transform API', function() {

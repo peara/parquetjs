@@ -100,6 +100,9 @@ function shredRecordInternal(fields: Record<string, ParquetField>, record: Recor
     if (record && (fieldName in record) && record[fieldName] !== undefined && record[fieldName] !== null) {
       if (Array.isArray(record[fieldName])) {
         values = record[fieldName] as Array<unknown>;
+      // checks all typed arrays and wrap them in a buffer, since typed arrays are not supported by parquet_thrift
+      } else if(ArrayBuffer.isView(record[fieldName])) {
+        values.push(Buffer.from(record[fieldName] as ArrayBuffer));
       } else {
         values.push(record[fieldName]);
       }
